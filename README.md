@@ -27,6 +27,7 @@ rewards-api
 ├── model
 ├── dto
 ├── exception
+├── Repository
 ├── test
 ├── pom.xml
 └── README.md
@@ -34,8 +35,14 @@ rewards-api
 
 # API Endpoint
 
+# Get all rewards
 GET /api/rewards
 
+#Get Rewards by Customer ID
+GET /api/rewards/{customerId}
+
+#Create Transactions (Bulk)
+POST /api/rewards/transactions/bulk
 
 # Implementation Details
 
