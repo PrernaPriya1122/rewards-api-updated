@@ -38,11 +38,14 @@ rewards-api
 # Get all rewards
 GET /api/rewards
 
-#Get Rewards by Customer ID
+# Get Rewards by Customer ID
 GET /api/rewards/{customerId}
 
-#Create Transactions (Bulk)
+# Create Transactions (Bulk)
 POST /api/rewards/transactions/bulk
+
+# Get transcation between specific date
+GET/api/rewards/date-range?startDate
 
 # Implementation Details
 
@@ -86,7 +89,5 @@ mvn spring-boot:run
 
 
 
-# API URL
 
-http://localhost:8080/api/rewards
 
