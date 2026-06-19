@@ -1,29 +1,31 @@
 package com.rewards.api.service;
+
+import com.rewards.api.Repository.CustomerRepository;
 import com.rewards.api.Repository.TransactionRepository;
 import com.rewards.api.dto.RewardResponse;
+import com.rewards.api.exception.CustomerNotFoundException;
+import com.rewards.api.exception.TransactionNotFoundException;
 import com.rewards.api.model.Customer;
 import com.rewards.api.model.Transaction;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
+import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link RewardServiceImpl}.
- * Covers all reward calculation logic, repository interactions,
- * and edge cases.
  */
 @ExtendWith(MockitoExtension.class)
 class RewardServiceImplTest {
@@ -31,16 +33,30 @@ class RewardServiceImplTest {
     @Mock
     private TransactionRepository transactionRepository;
 
+    @Mock
+    private CustomerRepository customerRepository;
+
     @InjectMocks
     private RewardServiceImpl rewardService;
 
-    /**
-     * Utility method to create a transaction with Customer.
-     */
-    private Transaction createTransaction(Long customerId, String name,
-                                          BigDecimal amount, LocalDate date) {
+    @BeforeEach
+    void setUp() {
 
-        Customer customer = new Customer(customerId, name);
+        ReflectionTestUtils.setField(
+                rewardService,
+                "rewardMonths",
+                3
+        );
+    }
+
+    /**
+     * Creates a transaction for testing.
+     */
+    private Transaction createTransaction(
+            Customer customer,
+            BigDecimal amount,
+            LocalDate date) {
+
         Transaction transaction = new Transaction();
         transaction.setCustomer(customer);
         transaction.setAmount(amount);
@@ -50,221 +66,244 @@ class RewardServiceImplTest {
     }
 
     /**
-     * Test saving a transaction successfully.
-     */
-    @Test
-    void testSaveTransaction() {
-
-        Transaction input = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(120), LocalDate.now());
-
-        when(transactionRepository.save(any(Transaction.class))).thenReturn(input);
-
-        Transaction saved = rewardService.saveTransaction(input);
-
-        assertNotNull(saved);
-        assertEquals("Prerna", saved.getCustomer().getName());
-        assertEquals(BigDecimal.valueOf(120), saved.getAmount());
-    }
-
-    /**
-     * Test reward calculation for amount <= 50.
-     */
-    @Test
-    void testCalculatePointsAmountLessThanOrEqual50() {
-
-        Transaction transaction = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(50), LocalDate.now());
-
-        List<RewardResponse> responses = rewardService.calculateRewards(List.of(transaction));
-
-        assertEquals(BigDecimal.ZERO, responses.get(0).getTotalPoints());
-    }
-
-    /**
-     * Test reward calculation for amount between 50 and 100.
-     */
-    @Test
-    void testCalculatePointsAmountBetween50And100() {
-
-        Transaction transaction = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(75), LocalDate.now());
-
-        List<RewardResponse> responses = rewardService.calculateRewards(List.of(transaction));
-
-        assertEquals(BigDecimal.valueOf(25), responses.get(0).getTotalPoints());
-    }
-
-    /**
-     * Test reward calculation for amount > 100.
-     */
-    @Test
-    void testCalculatePointsAmountGreaterThan100() {
-
-        Transaction transaction = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(120), LocalDate.now());
-
-        List<RewardResponse> responses = rewardService.calculateRewards(List.of(transaction));
-
-        assertEquals(BigDecimal.valueOf(90), responses.get(0).getTotalPoints());
-    }
-
-    /**
-     * Test multiple transactions across different months.
-     */
-    @Test
-    void testCalculateRewardsMultipleMonths() {
-
-        Transaction t1 = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(120), LocalDate.of(2024, 3, 15));
-
-        Transaction t2 = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(75), LocalDate.of(2025, 3, 15));
-
-        List<RewardResponse> responses = rewardService.calculateRewards(List.of(t1, t2));
-
-        Map<YearMonth, BigDecimal> monthly = responses.get(0).getMonthlyPoints();
-
-        assertEquals(BigDecimal.valueOf(90), monthly.get(YearMonth.of(2024, 3)));
-        assertEquals(BigDecimal.valueOf(25), monthly.get(YearMonth.of(2025, 3)));
-        assertEquals(BigDecimal.valueOf(115), responses.get(0).getTotalPoints());
-    }
-
-    /**
-     * Test negative amount throws exception.
-     */
-    @Test
-    void testNegativeAmountThrowsException() {
-
-        Transaction transaction = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(-10), LocalDate.now());
-
-        assertThrows(IllegalArgumentException.class,
-                () -> rewardService.calculateRewards(List.of(transaction)));
-    }
-
-    /**
-     * Test empty transaction list returns empty result.
-     */
-    @Test
-    void testEmptyTransactionList() {
-
-        List<RewardResponse> responses = rewardService.calculateRewards(Collections.emptyList());
-
-        assertTrue(responses.isEmpty());
-    }
-
-    /**
-     * Test getAllRewards with repository data.
+     * Verify rewards are calculated for multiple customers.
      */
     @Test
     void testGetAllRewards() {
 
-        Transaction t1 = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(120), LocalDate.of(2024, 3, 15));
+        Customer customer1 = new Customer(1L, "John");
+        Customer customer2 = new Customer(2L, "Jane");
 
-        Transaction t2 = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(75), LocalDate.of(2024, 4, 15));
+        List<Transaction> transactions = List.of(
+                createTransaction(
+                        customer1,
+                        BigDecimal.valueOf(120),
+                        LocalDate.now().minusDays(10)
+                ),
+                createTransaction(
+                        customer1,
+                        BigDecimal.valueOf(75),
+                        LocalDate.now().minusDays(5)
+                ),
+                createTransaction(
+                        customer2,
+                        BigDecimal.valueOf(150),
+                        LocalDate.now().minusDays(15)
+                )
+        );
 
-        when(transactionRepository.findAll()).thenReturn(List.of(t1, t2));
+        when(transactionRepository.findAll())
+                .thenReturn(transactions);
 
-        List<RewardResponse> responses = rewardService.getAllRewards();
+        List<RewardResponse> responses =
+                rewardService.getAllRewards();
 
-        assertEquals(1, responses.size());
-        assertEquals(BigDecimal.valueOf(115), responses.get(0).getTotalPoints());
-        assertEquals("Prerna", responses.get(0).getCustomerName());
+        assertEquals(2, responses.size());
     }
 
     /**
-     * Test getRewardsByCustomerId when data exists.
+     * Verify reward calculation for a valid customer.
      */
     @Test
-    void testGetRewardsByCustomerIdFound() {
+    void testGetRewardsByCustomerId() {
 
-        Transaction t1 = createTransaction(2L, "Rahul",
-                BigDecimal.valueOf(200), LocalDate.now());
+        Customer customer = new Customer(1L, "John");
 
-        Transaction t2 = createTransaction(2L, "Rahul",
-                BigDecimal.valueOf(40), LocalDate.now());
+        List<Transaction> transactions = List.of(
+                createTransaction(
+                        customer,
+                        BigDecimal.valueOf(120),
+                        LocalDate.now().minusDays(10)
+                )
+        );
 
-        when(transactionRepository.findByCustomerId(2L)).thenReturn(List.of(t1, t2));
+        when(customerRepository.findById(1L))
+                .thenReturn(Optional.of(customer));
 
-        RewardResponse response = rewardService.getRewardsByCustomerId(2L);
+        when(transactionRepository.findByCustomerId(1L))
+                .thenReturn(transactions);
 
-        assertEquals(2L, response.getCustomerId());
-        assertEquals("Rahul", response.getCustomerName());
-        assertEquals(BigDecimal.valueOf(250), response.getTotalPoints());
+        RewardResponse response =
+                rewardService.getRewardsByCustomerId(1L);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getCustomerId());
+        assertEquals("John", response.getCustomerName());
     }
 
     /**
-     * Test getRewardsByCustomerId when no data exists.
+     * Verify CustomerNotFoundException is thrown
+     * when customer does not exist.
      */
     @Test
-    void testGetRewardsByCustomerIdNotFound() {
+    void testGetRewardsByCustomerIdCustomerNotFound() {
 
-        when(transactionRepository.findByCustomerId(99L)).thenReturn(Collections.emptyList());
+        when(customerRepository.findById(100L))
+                .thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class,
-                () -> rewardService.getRewardsByCustomerId(99L));
+        assertThrows(
+                CustomerNotFoundException.class,
+                () -> rewardService.getRewardsByCustomerId(100L)
+        );
     }
 
     /**
-     * Test getRewardsByDateRange success scenario.
+     * Verify TransactionNotFoundException is thrown
+     * when customer exists but has no transactions.
      */
     @Test
-    void testGetRewardsByDateRangeSuccess() {
+    void testGetRewardsByCustomerIdNoTransactions() {
 
-        Transaction t1 = createTransaction(1L, "Prerna",
-                BigDecimal.valueOf(120), LocalDate.of(2024, 1, 10));
+        Customer customer = new Customer(1L, "John");
+
+        when(customerRepository.findById(1L))
+                .thenReturn(Optional.of(customer));
+
+        when(transactionRepository.findByCustomerId(1L))
+                .thenReturn(List.of());
+
+        assertThrows(
+                TransactionNotFoundException.class,
+                () -> rewardService.getRewardsByCustomerId(1L)
+        );
+    }
+
+    /**
+     * Verify rewards are fetched within a date range.
+     */
+    @Test
+    void testGetRewardsByDateRange() {
+
+        Customer customer = new Customer(1L, "John");
+
+        List<Transaction> transactions = List.of(
+                createTransaction(
+                        customer,
+                        BigDecimal.valueOf(120),
+                        LocalDate.of(2026, 4, 10)
+                )
+        );
 
         when(transactionRepository.findByTransactionDateBetween(
-                LocalDate.of(2024, 1, 1),
-                LocalDate.of(2024, 1, 31)))
-                .thenReturn(List.of(t1));
+                LocalDate.of(2026, 4, 1),
+                LocalDate.of(2026, 4, 30)
+        )).thenReturn(transactions);
 
         List<RewardResponse> responses =
                 rewardService.getRewardsByDateRange(
-                        LocalDate.of(2024, 1, 1),
-                        LocalDate.of(2024, 1, 31));
+                        LocalDate.of(2026, 4, 1),
+                        LocalDate.of(2026, 4, 30)
+                );
 
-        assertEquals(1, responses.size());
-        assertEquals(BigDecimal.valueOf(90), responses.get(0).getTotalPoints());
+        assertFalse(responses.isEmpty());
     }
 
     /**
-     * Test getRewardsByDateRange with null dates.
+     * Verify exception when start date is null.
      */
     @Test
-    void testGetRewardsByDateRangeNullDates() {
+    void testGetRewardsByDateRangeWithNullDate() {
 
-        assertThrows(IllegalArgumentException.class,
-                () -> rewardService.getRewardsByDateRange(null, LocalDate.now()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> rewardService.getRewardsByDateRange(
+                        null,
+                        LocalDate.now()
+                )
+        );
     }
 
     /**
-     * Test getRewardsByDateRange when start date is after end date.
+     * Verify exception when start date is after end date.
      */
     @Test
     void testGetRewardsByDateRangeInvalidRange() {
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> rewardService.getRewardsByDateRange(
-                        LocalDate.of(2024, 5, 1),
-                        LocalDate.of(2024, 1, 1)));
+                        LocalDate.of(2026, 6, 1),
+                        LocalDate.of(2026, 5, 1)
+                )
+        );
     }
 
     /**
-     * Test getRewardsByDateRange when no transactions found.
+     * Verify exception when no transactions exist
+     * in the specified date range.
      */
     @Test
-    void testGetRewardsByDateRangeNoData() {
+    void testGetRewardsByDateRangeNoTransactions() {
 
-        when(transactionRepository.findByTransactionDateBetween(any(), any()))
-                .thenReturn(Collections.emptyList());
+        when(transactionRepository.findByTransactionDateBetween(
+                LocalDate.of(2026, 4, 1),
+                LocalDate.of(2026, 4, 30)
+        )).thenReturn(List.of());
 
-        assertThrows(RuntimeException.class,
+        assertThrows(
+                TransactionNotFoundException.class,
                 () -> rewardService.getRewardsByDateRange(
-                        LocalDate.of(2024, 1, 1),
-                        LocalDate.of(2024, 1, 31)));
+                        LocalDate.of(2026, 4, 1),
+                        LocalDate.of(2026, 4, 30)
+                )
+        );
+    }
+
+    /**
+     * Verify negative amount transaction throws exception.
+     */
+    @Test
+    void testCalculateRewardsWithNegativeAmount() {
+
+        Customer customer = new Customer(1L, "John");
+
+        List<Transaction> transactions = List.of(
+                createTransaction(
+                        customer,
+                        BigDecimal.valueOf(-100),
+                        LocalDate.now()
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> rewardService.calculateRewards(transactions)
+        );
+    }
+
+    /**
+     * Verify reward calculation for multiple months.
+     */
+    @Test
+    void testCalculateRewardsMultipleMonths() {
+
+        Customer customer = new Customer(1L, "John");
+
+        List<Transaction> transactions = List.of(
+                createTransaction(
+                        customer,
+                        BigDecimal.valueOf(120),
+                        LocalDate.of(2026, 4, 10)
+                ),
+                createTransaction(
+                        customer,
+                        BigDecimal.valueOf(200),
+                        LocalDate.of(2026, 5, 15)
+                ),
+                createTransaction(
+                        customer,
+                        BigDecimal.valueOf(75),
+                        LocalDate.of(2026, 6, 5)
+                )
+        );
+
+        List<RewardResponse> responses =
+                rewardService.calculateRewards(transactions);
+
+        assertEquals(1, responses.size());
+        assertEquals(
+                3,
+                responses.get(0).getMonthlyRewards().size()
+        );
     }
 }

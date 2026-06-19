@@ -1,8 +1,6 @@
 package com.rewards.api.service;
-
 import com.rewards.api.dto.RewardResponse;
 import com.rewards.api.model.Transaction;
-
 import java.time.LocalDate;
 import java.util.List;
 /**
@@ -18,13 +16,6 @@ public interface RewardService {
      * @return a list of {@link RewardResponse} objects containing reward summaries
      */
     List<RewardResponse> calculateRewards(List<Transaction> transactions);
-
-    /**
-     * Saves a new transaction to the database.
-     * @param request the {@link Transaction} object to be saved
-     * @return the persisted {@link Transaction} with generated ID
-     */
-    Transaction saveTransaction(Transaction request);
 
     /**
      * Retrieves all transactions from the database and calculates rewards
