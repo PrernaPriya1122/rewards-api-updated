@@ -49,6 +49,7 @@ public class RewardController {
      */
     @GetMapping
     public List<RewardResponse> getRewards() {
+
         return rewardService.getAllRewards();
     }
     /**

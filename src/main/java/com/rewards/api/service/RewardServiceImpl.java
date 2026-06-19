@@ -2,6 +2,7 @@ package com.rewards.api.service;
 
 import com.rewards.api.Repository.TransactionRepository;
 import com.rewards.api.dto.RewardResponse;
+import com.rewards.api.exception.TransactionNotFoundException;
 import com.rewards.api.model.Transaction;
 import org.springframework.stereotype.Service;
 
@@ -153,9 +154,12 @@ public class RewardServiceImpl implements RewardService {
         List<Transaction> transactions =
                 transactionRepository.findByCustomerId(customerId);
 
+
         if (transactions.isEmpty()) {
-            throw new RuntimeException("No transactions found for customerId: " + customerId);
+            throw new TransactionNotFoundException(
+                    "No transactions found for customer ID: " + customerId);
         }
+
 
         return calculateRewards(transactions).get(0);
     }

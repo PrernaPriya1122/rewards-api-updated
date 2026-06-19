@@ -60,4 +60,14 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(buildResponse("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR));
     }
+
+    @ExceptionHandler(TransactionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTransactionNotFoundException(
+            TransactionNotFoundException ex) {
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildResponse("No transactions found for customer ID",HttpStatus.NOT_FOUND));
+
+    }
 }
