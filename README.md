@@ -1,4 +1,4 @@
-# 🎯 Retailer Rewards Program
+#  Retailer Rewards Program
 
 A Spring Boot REST API application that calculates and tracks customer reward points based on purchase transactions.
 
@@ -6,7 +6,7 @@ The application retrieves customer transactions from the database, calculates re
 
 ---
 
-## 🚀 Features
+##  Features
 
 ✅ Reward points calculation based on transaction amount
 
@@ -30,7 +30,7 @@ The application retrieves customer transactions from the database, calculates re
 
 ---
 
-## 📋 Business Rules
+## Business Rules
 
 Customers earn reward points based on purchase amount:
 
@@ -57,7 +57,7 @@ Reward Points:
 
 ---
 
-## 🏗️ Technology Stack
+##  Technology Stack
 
 | Technology      | Version            |
 | --------------- | ------------------ |
@@ -74,7 +74,7 @@ Reward Points:
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
 src
@@ -118,7 +118,7 @@ src
 
 ---
 
-## 🗄️ Data Model
+##  Data Model
 
 ### Customer
 
@@ -239,7 +239,7 @@ GET /api/rewards/date-range?startDate=2026-04-01&endDate=2026-04-30
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Reward calculation period is configurable through:
 
@@ -251,7 +251,7 @@ This allows changing the reward calculation window without modifying code.
 
 ---
 
-## ⚠️ Exception Handling
+## Exception Handling
 
 Implemented using:
 
@@ -305,7 +305,7 @@ Implemented using:
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 The application includes:
 
@@ -327,7 +327,7 @@ The application includes:
 
 ---
 
-## 🛠️ Build & Run
+## Build & Run
 
 ### Build Project
 
@@ -349,7 +349,7 @@ http://localhost:8080
 
 ---
 
-## 🗃️ H2 Database Console
+## H2 Database Console
 
 ### Access URL
 
@@ -367,7 +367,7 @@ Password :
 
 ---
 
-## 📌 Assumptions
+##  Assumptions
 
 * Transaction amounts cannot be negative.
 * Customers may exist without transactions.
